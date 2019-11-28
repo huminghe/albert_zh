@@ -23,6 +23,8 @@ import modeling
 import optimization
 import tensorflow as tf
 
+from tensorflow.python.estimator.run_config import RunConfig
+from tensorflow.python.estimator.estimator import Estimator
 from tensorflow.python.distribute.cross_device_ops import AllReduceCrossDeviceOps
 
 
@@ -64,7 +66,7 @@ flags.DEFINE_integer(
     "Maximum number of masked LM predictions per sequence. "
     "Must match data generation.")
 
-flags.DEFINE_bool("do_train", False, "Whether to run training.")
+flags.DEFINE_bool("do_train", True, "Whether to run training.")
 
 flags.DEFINE_bool("do_eval", False, "Whether to run eval on the dev set.")
 
@@ -186,11 +188,11 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
       train_op = optimization.create_optimizer(
           total_loss, learning_rate, num_train_steps, num_warmup_steps, use_tpu)
 
-      output_spec = tf.contrib.tpu.TPUEstimatorSpec(
+      output_spec = tf.estimator.EstimatorSpec(
           mode=mode,
           loss=total_loss,
           train_op=train_op,
-          scaffold_fn=scaffold_fn)
+          scaffold=scaffold_fn)
     elif mode == tf.estimator.ModeKeys.EVAL:
 
       def metric_fn(masked_lm_example_loss, masked_lm_log_probs, masked_lm_ids,
@@ -449,17 +451,15 @@ def main(_):
   )
 
   is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
-  run_config = tf.contrib.tpu.RunConfig(
-      keep_checkpoint_max=20, # 10
-      cluster=tpu_cluster_resolver,
-      master=FLAGS.master,
-      model_dir=FLAGS.output_dir,
-      save_checkpoints_steps=FLAGS.save_checkpoints_steps,
+
+  log_every_n_steps = 20
+
+  run_config = RunConfig(
       train_distribute=dist_strategy,
-      tpu_config=tf.contrib.tpu.TPUConfig(
-          iterations_per_loop=FLAGS.iterations_per_loop,
-          num_shards=FLAGS.num_tpu_cores,
-          per_host_input_for_training=is_per_host))
+      eval_distribute=dist_strategy,
+      log_step_count_steps=log_every_n_steps,
+      model_dir=FLAGS.output_dir,
+      save_checkpoints_steps=FLAGS.save_checkpoints_steps)
 
   model_fn = model_fn_builder(
       bert_config=bert_config,
@@ -472,12 +472,10 @@ def main(_):
 
   # If TPU is not available, this will fall back to normal Estimator on CPU
   # or GPU.
-  estimator = tf.contrib.tpu.TPUEstimator(
-      use_tpu=FLAGS.use_tpu,
+  estimator = Estimator(
       model_fn=model_fn,
-      config=run_config,
-      train_batch_size=FLAGS.train_batch_size,
-      eval_batch_size=FLAGS.eval_batch_size)
+      params={},
+      config=run_config)
 
   if FLAGS.do_train:
     tf.logging.info("***** Running training *****")
