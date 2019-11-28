@@ -21,6 +21,7 @@ from __future__ import print_function
 import os
 import modeling
 import optimization
+import optimization_gpu
 import tensorflow as tf
 
 from tensorflow.python.estimator.run_config import RunConfig
@@ -185,8 +186,8 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
 
     output_spec = None
     if mode == tf.estimator.ModeKeys.TRAIN:
-      train_op = optimization.create_optimizer(
-          total_loss, learning_rate, num_train_steps, num_warmup_steps, use_tpu)
+      train_op = optimization_gpu.create_optimizer(
+          total_loss, learning_rate, num_train_steps, num_warmup_steps)
 
       output_spec = tf.estimator.EstimatorSpec(
           mode=mode,
