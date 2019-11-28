@@ -23,9 +23,16 @@ import modeling
 import optimization
 import tensorflow as tf
 
+from tensorflow.python.distribute.cross_device_ops import AllReduceCrossDeviceOps
+
+
 flags = tf.flags
 
 FLAGS = flags.FLAGS
+
+flags.DEFINE_integer(
+    "n_gpus", 4,
+    "GPU number")
 
 ## Required parameters
 flags.DEFINE_string(
@@ -105,7 +112,7 @@ flags.DEFINE_integer(
     "num_tpu_cores", 8,
     "Only used if `use_tpu` is True. Total number of TPU cores to use.")
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 2, 3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 6, 7'
 
 def model_fn_builder(bert_config, init_checkpoint, learning_rate,
                      num_train_steps, num_warmup_steps, use_tpu,
@@ -435,6 +442,12 @@ def main(_):
   print("###tpu_cluster_resolver:",tpu_cluster_resolver,";FLAGS.use_tpu:",FLAGS.use_tpu,";FLAGS.tpu_name:",FLAGS.tpu_name,";FLAGS.tpu_zone:",FLAGS.tpu_zone)
   # ###tpu_cluster_resolver: <tensorflow.python.distribute.cluster_resolver.tpu_cluster_resolver.TPUClusterResolver object at 0x7f4b387b06a0> ;FLAGS.use_tpu: True ;FLAGS.tpu_name: grpc://10.240.1.83:8470
 
+  dist_strategy = tf.contrib.distribute.MirroredStrategy(
+      num_gpus=FLAGS.n_gpus,
+      cross_device_ops=AllReduceCrossDeviceOps('nccl', num_packs=FLAGS.n_gpus),
+      # cross_device_ops=AllReduceCrossDeviceOps('hierarchical_copy'),
+  )
+
   is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
   run_config = tf.contrib.tpu.RunConfig(
       keep_checkpoint_max=20, # 10
@@ -442,6 +455,7 @@ def main(_):
       master=FLAGS.master,
       model_dir=FLAGS.output_dir,
       save_checkpoints_steps=FLAGS.save_checkpoints_steps,
+      train_distribute=dist_strategy,
       tpu_config=tf.contrib.tpu.TPUConfig(
           iterations_per_loop=FLAGS.iterations_per_loop,
           num_shards=FLAGS.num_tpu_cores,
