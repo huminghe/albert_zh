@@ -34,7 +34,7 @@ flags = tf.flags
 FLAGS = flags.FLAGS
 
 flags.DEFINE_integer(
-    "n_gpus", 4,
+    "n_gpus", 8,
     "GPU number")
 
 ## Required parameters
@@ -115,7 +115,7 @@ flags.DEFINE_integer(
     "num_tpu_cores", 8,
     "Only used if `use_tpu` is True. Total number of TPU cores to use.")
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 6, 7'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 2, 3, 4, 5, 6, 7'
 
 def model_fn_builder(bert_config, init_checkpoint, learning_rate,
                      num_train_steps, num_warmup_steps, use_tpu,
