@@ -26,7 +26,7 @@ import tensorflow as tf
 
 from tensorflow.python.estimator.run_config import RunConfig
 from tensorflow.python.estimator.estimator import Estimator
-from tensorflow.python.distribute.cross_device_ops import AllReduceCrossDeviceOps
+from tensorflow.python.distribute.cross_device_ops import NcclAllReduce
 
 
 flags = tf.flags
@@ -445,9 +445,8 @@ def main(_):
   print("###tpu_cluster_resolver:",tpu_cluster_resolver,";FLAGS.use_tpu:",FLAGS.use_tpu,";FLAGS.tpu_name:",FLAGS.tpu_name,";FLAGS.tpu_zone:",FLAGS.tpu_zone)
   # ###tpu_cluster_resolver: <tensorflow.python.distribute.cluster_resolver.tpu_cluster_resolver.TPUClusterResolver object at 0x7f4b387b06a0> ;FLAGS.use_tpu: True ;FLAGS.tpu_name: grpc://10.240.1.83:8470
 
-  dist_strategy = tf.contrib.distribute.MirroredStrategy(
-      num_gpus=FLAGS.n_gpus,
-      cross_device_ops=AllReduceCrossDeviceOps('nccl', num_packs=FLAGS.n_gpus),
+  dist_strategy = tf.distribute.MirroredStrategy(
+      cross_device_ops=NcclAllReduce(num_packs=FLAGS.n_gpus)
       # cross_device_ops=AllReduceCrossDeviceOps('hierarchical_copy'),
   )
 
